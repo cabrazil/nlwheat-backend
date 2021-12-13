@@ -6,14 +6,13 @@ interface IAccessTokenResponse {
   access_token: string;
 }
 
-interface IUserResponse {
-  avatar_url: string,
+interface IOwnerResponse {
   login: string,
-  id: number,
+  email: string,
   name: string
 }
 
-class AuthUserService {
+class AuthOwnerService {
   async execute(code: string) {
     const url = "https://github.com/login/oauth/access_token";
 
@@ -28,47 +27,46 @@ class AuthUserService {
       },
     });
 
-    const response = await axios.get<IUserResponse>("https://api.github.com/user", {
+    const response = await axios.get<IOwnerResponse>("https://api.github.com/user", {
       headers: {
         authorization: `Bearer ${accessTokenResponse.access_token}`
       },
     });
 
-    const { login, id, avatar_url, name } = response.data;
+    const { login, email, name } = response.data;
 
-    let user = await prismaClient.user.findFirst({
+    let owner = await prismaClient.owner.findFirst({
       where: {
-        github_id: id
+        login_id: login
       }
     })
 
-    if (!user) {
-      user = await prismaClient.user.create({
+    if (!owner) {
+      owner = await prismaClient.owner.create({
         data: {
-          github_id: id,
-          login,
-          avatar_url,
+          login_id: login,
+          email,
           name
         }
       })
     }
     const token = sign(
       {
-        user: {
-          name: user.name,
-          avatar_url: user.avatar_url,
-          id: user.id
+        owner: {
+          name: owner.name,
+          login: owner.login_id,
+          email: owner.email
         }
       },
       process.env.JWT_SECRET,
       {
-        subject: user.id,
-        expiresIn: "1d"
+        subject: owner.id,
+        expiresIn: "2d"
       }
     )
 
-    return { token, user };
+    return { token, owner };
   }
 }
 
-export { AuthUserService }
+export { AuthOwnerService }
